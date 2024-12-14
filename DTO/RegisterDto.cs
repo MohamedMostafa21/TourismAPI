@@ -44,10 +44,8 @@ namespace TourismAPI.DTO
         //[FileExtensions(Extensions = "pdf", ErrorMessage = "Only PDF files are allowed")]
         public IFormFile? CvDocument { get; set; }
 
-        public string? Role { get; set; }
+        // not needed
+        //public string? Role { get; set; }
 
-        public bool rememberMe { get; set; } = false;
-
-       
     }
 }

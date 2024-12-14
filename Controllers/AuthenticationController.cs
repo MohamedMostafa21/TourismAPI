@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -7,6 +8,7 @@ using System.Security.Claims;
 using System.Text;
 using TourismAPI.DTO;
 using TourismAPI.Models;
+    
 
 namespace TourismAPI.Controllers
 {
@@ -15,15 +17,18 @@ namespace TourismAPI.Controllers
     public class AuthenticationController : ControllerBase
     {
         private readonly UserManager<User> userManager;
+        private readonly RoleManager<IdentityRole> roleManager;
         private readonly IConfiguration config;
 
 
-        public AuthenticationController (UserManager<User> userManager, IConfiguration config)
+        public AuthenticationController (UserManager<User> userManager, IConfiguration config, RoleManager<IdentityRole> roleManager)
         {
             this.userManager = userManager;
+            this.roleManager = roleManager;
             this.config = config;
         }
 
+        // Register Endpoint
         [HttpPost("Register")]
         public async Task<IActionResult> Register([FromForm] RegisterDto registerDto) //Post api/Authentication/Register
         {
@@ -67,14 +72,15 @@ namespace TourismAPI.Controllers
                 user.PhoneNumber = registerDto.PhoneNumber;
                 user.Gender  = registerDto.Gender.ToString();
                 user.Age = registerDto.Age;
-                user.Role = registerDto.Role;
+                //user.Role = registerDto.Role;
                 user.Country = registerDto.Country;
                 user.PhotoUrl = profilePhotoPath;
                 user.CvUrl = cvDocumentPath;
                 IdentityResult result = await userManager.CreateAsync(user, registerDto.Password);
                 if (result.Succeeded)
                 {
-                    return Ok("Create");
+                    await userManager.AddToRoleAsync(user, "Tourist");
+                    return Ok("User Registered with Tourist role.");
                 }
                 foreach (var item in result.Errors)
                 {
@@ -84,6 +90,7 @@ namespace TourismAPI.Controllers
             }
             return BadRequest(ModelState);
         }
+        // Login Endpoint
         [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] LoginDto LoggedUser) //Post api/Authentication/Login
         {
@@ -131,12 +138,23 @@ namespace TourismAPI.Controllers
                             signingCredentials: signingCred
 
                             );
+
+                        // Set token expiration time based on RememberMe
+                        DateTime tokenExpiration;
+                        if (LoggedUser.RememberMe) // make it 30 days if checked
+                        {
+                            tokenExpiration = DateTime.Now.AddDays(30);
+                        }
+                        else // Default expiration is 1 hour
+                        {
+                            tokenExpiration = DateTime.Now.AddHours(1);
+                        }
                         //generate token response
 
                         return Ok(new
                         {
                             token = new JwtSecurityTokenHandler().WriteToken(mytoken),
-                            expiration = DateTime.Now.AddHours(1)//mytoken.ValidTo
+                            expiration = tokenExpiration//mytoken.ValidTo
                             //
                         });
                     }
@@ -145,6 +163,8 @@ namespace TourismAPI.Controllers
             }
             return BadRequest(ModelState);
         }
+
+
 
     }
 }
